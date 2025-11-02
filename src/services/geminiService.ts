@@ -2,12 +2,18 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 
 // Add validation for API key
 const API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
+
 if (!API_KEY) {
   console.error('❌ VITE_GEMINI_API_KEY not found in environment variables');
   console.error('Please set VITE_GEMINI_API_KEY in your .env.local file');
+  console.error('Example: VITE_GEMINI_API_KEY=your_api_key_here');
+} else {
+  console.log('✅ Gemini API key loaded successfully');
+  console.log('🔑 API Key prefix:', API_KEY.substring(0, 10) + '...');
 }
 
-const genAI = new GoogleGenerativeAI(API_KEY);
+// Initialize Gemini AI with API key (use empty string fallback if not set)
+const genAI = new GoogleGenerativeAI(API_KEY || '');
 
 // System prompts for different analysis types
 const SYSTEM_PROMPTS = {
@@ -3619,10 +3625,25 @@ Return ONLY this JSON:
   "skillGaps": [
     {
       "skill": "${fieldOfInterest} Advanced Skill",
-      "currentLevel": 6,
-      "requiredLevel": 9,
+      "currentLevel": 3,
+      "targetLevel": 5,
+      "importance": 4.5,
       "priority": "high",
       "developmentTime": "4-6 months"
+    }
+  ],
+  "learningPath": [
+    {
+      "skill": "${fieldOfInterest} Advanced Skill",
+      "action": "Complete advanced training and practical projects",
+      "timeline": "4-6 months",
+      "resources": [
+        "Advanced ${fieldOfInterest} certification course",
+        "Hands-on project portfolio",
+        "Industry mentorship program"
+      ],
+      "measurableOutcome": "Ability to demonstrate advanced ${fieldOfInterest} competency",
+      "difficultyLevel": "Intermediate to Advanced"
     }
   ],
   "careerRecommendations": [
@@ -3641,9 +3662,9 @@ Return ONLY this JSON:
   "personalityProfile": [
     {
       "trait": "${fieldOfInterest} Leadership",
-      "score": 8,
+      "score": 85,
       "description": "${fieldOfInterest} leadership description based on scenario choices",
-      "careerImplications": ["${fieldOfInterest} career path"],
+      "careerImplications": "${fieldOfInterest} career path opportunities",
       "workplaceExamples": ["Example behavior from responses"]
     }
   ],
@@ -4102,6 +4123,614 @@ Return ONLY this JSON structure:
     }
     
     return { personalityProfile: baseTraits };
+  },
+
+  // Generate comprehensive startup roadmap based on user's skills and analysis
+  async generateStartupRoadmap(
+    topSkills: string[],
+    careerAnalysis: CareerAnalysis,
+    niche?: string
+  ): Promise<any> {
+    try {
+      console.log('🚀 Generating startup roadmap for skills:', topSkills);
+      
+      const prompt = `You are an expert entrepreneurship advisor with 20+ years of experience helping successful startups launch and scale. 
+      Generate a comprehensive startup roadmap based on the following assessment data.
+      
+      User's Top Skills: ${topSkills.join(', ')}
+      Niche/Field: ${niche || 'general business'}
+      Overall Career Score: ${careerAnalysis.overallScore}
+      Strengths: ${careerAnalysis.topStrengths?.join(', ') || 'Strong technical and problem-solving skills'}
+      
+      Generate a detailed startup roadmap with these sections:
+      1. BUSINESS IDEA:
+         - A unique, innovative business concept that leverages their top skills
+         - Clear target market definition
+         - Problem statement (what problem does this solve?)
+         - Solution description
+         - Unique value proposition
+      
+      2. BUSINESS PLAN:
+         - Executive summary
+         - Market analysis with size and opportunity
+         - Competitive advantage
+         - Revenue model
+         - Go-to-market strategy
+      
+      3. FUNDING STRATEGY:
+         - Total funding requirement estimate
+         - At least 2 funding stages (Pre-Seed, Seed, etc.) with:
+           * Stage name
+           * Amount needed
+           * Purpose of funds
+           * Timeline
+           * Investor type
+         - Funding sources to explore
+      
+      4. TEAM BUILDING:
+         - Core team roles needed (at least 2: CEO/Co-Founder, CTO/Co-Founder, etc.)
+           * For each role: title, key skills needed, responsibilities
+         - Hiring plan with phases, positions, and timeline
+      
+      5. MILESTONES:
+         - At least 2 key milestones
+           * For each: milestone name, timeline, key deliverables, success metrics
+      
+      6. RESOURCES:
+         - Tools and platforms to use
+         - Launch platforms
+         - Mentorship programs
+         - Communities to join
+      
+      IMPORTANT: Be realistic, specific, and actionable. Tailor everything to their skill set and niche.
+      Return ONLY valid JSON matching this structure:
+      {
+        "businessIdea": {
+          "concept": "Your innovative business concept",
+          "targetMarket": "Specific target market",
+          "uniqueValueProposition": "What makes this unique",
+          "problemStatement": "Problem being solved",
+          "solution": "How you solve it"
+        },
+        "businessPlan": {
+          "executiveSummary": "Brief overview",
+          "marketAnalysis": "Market size and opportunity",
+          "competitiveAdvantage": "Your competitive edge",
+          "revenueModel": "How you make money",
+          "goToMarketStrategy": "How you reach customers"
+        },
+        "fundingStrategy": {
+          "totalRequired": "Total amount",
+          "fundingStages": [
+            {
+              "stage": "Pre-Seed",
+              "amount": "Amount",
+              "purpose": "What it's for",
+              "timeline": "When",
+              "investorType": "Type of investors"
+            }
+          ],
+          "sources": ["Source 1", "Source 2"]
+        },
+        "teamBuilding": {
+          "coreTeam": [
+            {
+              "role": "CEO/Co-Founder",
+              "skills": ["skill1", "skill2"],
+              "responsibilities": ["resp1", "resp2"]
+            }
+          ],
+          "hiringPlan": [
+            {
+              "phase": "Phase description",
+              "positions": ["Position 1", "Position 2"],
+              "timeline": "When"
+            }
+          ]
+        },
+        "milestones": [
+          {
+            "milestone": "Milestone name",
+            "timeline": "Timeframe",
+            "keyDeliverables": ["deliverable1", "deliverable2"],
+            "successMetrics": ["metric1", "metric2"]
+          }
+        ],
+        "resources": {
+          "tools": ["tool1", "tool2"],
+          "platforms": ["platform1", "platform2"],
+          "mentorship": ["program1", "program2"],
+          "communities": ["community1", "community2"]
+        }
+      }`;
+
+      const result = await geminiServiceInstance['makeStructuredRequest'](prompt);
+      
+      if (result && typeof result === 'object') {
+        console.log('✅ Generated comprehensive startup roadmap');
+        return result;
+      } else {
+        console.log('⚠️ Using fallback startup roadmap');
+        return this.getFallbackStartupRoadmap(topSkills, niche);
+      }
+    } catch (error) {
+      console.error('❌ Error generating startup roadmap:', error);
+      return this.getFallbackStartupRoadmap(topSkills, niche);
+    }
+  },
+
+  // Fallback startup roadmap
+  getFallbackStartupRoadmap(topSkills: string[], niche?: string) {
+    console.log('🔄 Using fallback startup roadmap');
+    
+    const businessType = niche === 'technology' ? 'AI-powered SaaS' :
+                        niche === 'business' ? 'Consulting' :
+                        niche === 'healthcare' ? 'Health Tech' :
+                        niche === 'education' ? 'EdTech' :
+                        'Innovative Platform';
+
+    return {
+      businessIdea: {
+        concept: `${businessType} Platform leveraging ${topSkills.slice(0, 2).join(' and ')} expertise`,
+        targetMarket: `Early adopters in ${niche || 'target'} industry seeking innovative solutions`,
+        uniqueValueProposition: `Combines deep ${topSkills[0]} expertise with cutting-edge technology to solve real problems`,
+        problemStatement: `Traditional solutions in ${niche || 'this'} space lack personalization and scalability`,
+        solution: `An intelligent platform that provides tailored solutions through AI and expert knowledge`
+      },
+      businessPlan: {
+        executiveSummary: `A disruptive ${businessType} platform targeting ${niche || 'specific'} market opportunities`,
+        marketAnalysis: `Multi-billion dollar addressable market with growing demand for innovative solutions`,
+        competitiveAdvantage: `Unique combination of ${topSkills.join(', ')} creates defensible moat`,
+        revenueModel: `Freemium with premium features, enterprise licenses, and usage-based pricing`,
+        goToMarketStrategy: `Digital-first approach via content marketing, partnerships, and direct sales`
+      },
+      fundingStrategy: {
+        totalRequired: "$500K - $2M",
+        fundingStages: [
+          {
+            stage: "Pre-Seed",
+            amount: "$100K - $300K",
+            purpose: "MVP development and initial user validation",
+            timeline: "0-6 months",
+            investorType: "Angel investors and friends & family"
+          },
+          {
+            stage: "Seed Round",
+            amount: "$500K - $1M",
+            purpose: "Product development, team expansion, market entry",
+            timeline: "6-12 months",
+            investorType: "Early-stage VCs and angel groups"
+          }
+        ],
+        sources: ["Angel investors", "Venture capital", "Accelerator programs", "Government grants"]
+      },
+      teamBuilding: {
+        coreTeam: [
+          {
+            role: "CEO/Co-Founder",
+            skills: ["Strategic vision", "Leadership", topSkills[0] || "Business Development"],
+            responsibilities: ["Overall strategy", "Fundraising", "Key partnerships", "Product vision"]
+          },
+          {
+            role: "CTO/Co-Founder",
+            skills: ["Technical leadership", "Architecture", topSkills[1] || "Product Development"],
+            responsibilities: ["Product development", "Tech infrastructure", "Team leadership", "Innovation"]
+          }
+        ],
+        hiringPlan: [
+          {
+            phase: "Phase 1 (0-6 months)",
+            positions: ["Senior Engineer", "UI/UX Designer", "Growth Marketer"],
+            timeline: "Immediately post-funding"
+          },
+          {
+            phase: "Phase 2 (6-12 months)",
+            positions: ["Product Manager", "Customer Success", "Sales Lead"],
+            timeline: "Post-product launch"
+          }
+        ]
+      },
+      milestones: [
+        {
+          milestone: "MVP Launch",
+          timeline: "3-4 months",
+          keyDeliverables: ["Core platform", "Initial users", "Proof of concept"],
+          successMetrics: ["1000+ users", "50+ paying customers", "4.5+ app rating"]
+        },
+        {
+          milestone: "Seed Funding",
+          timeline: "6-9 months",
+          keyDeliverables: ["Traction metrics", "Investor meetings", "Term sheet"],
+          successMetrics: ["$500K+ raised", "3+ investors", "$2M+ valuation"]
+        }
+      ],
+      resources: {
+        tools: ["AWS/Cloud infrastructure", "Modern tech stack", "Analytics platforms", "Development tools"],
+        platforms: ["ProductHunt", "LinkedIn", "AngelList", "Startup directories"],
+        mentorship: ["Y Combinator", "Techstars", "Local accelerators"],
+        communities: ["Indie Hackers", "Startup School", "Product Hunt community"]
+      }
+    };
+  },
+
+  // Generate job opportunities with salaries for scenario analysis
+  async generateJobOpportunities(
+    fieldOfInterest: string,
+    niche: string,
+    analysisResult: any
+  ): Promise<any> {
+    try {
+      console.log('💼 Generating job opportunities for:', fieldOfInterest, niche);
+      
+      const prompt = `You are a senior career advisor and market analyst specializing in ${fieldOfInterest}. Generate comprehensive job opportunities based on the following analysis:
+
+FIELD: ${fieldOfInterest}
+NICHE: ${niche}
+ANALYSIS: ${JSON.stringify(analysisResult, null, 2)}
+
+Generate 5-7 specific job opportunities with the following details for each:
+- Job title
+- Company type (e.g., "Large Corporation", "Startup", "Mid-size Company", "Remote")
+- Expected salary range (realistic for the field and location)
+- Experience level required (e.g., "Entry Level", "Mid-level", "Senior")
+- Typical location (e.g., "Remote", "Major Cities", "Hybrid")
+- Key skills required (5-8 skills)
+- Growth potential (description of career progression)
+- Brief description of the role
+
+Return ONLY this JSON structure:
+{
+  "jobOpportunities": [
+    {
+      "title": "Job Title",
+      "companyType": "Company Type",
+      "salaryRange": "$XX,XXX - $XX,XXX per year",
+      "experienceLevel": "Experience Level",
+      "location": "Location Type",
+      "keySkills": ["Skill 1", "Skill 2", "Skill 3"],
+      "growthPotential": "Description of growth opportunities",
+      "description": "Brief description of the role"
+    }
+  ]
+}`;
+
+      const result: any = await geminiServiceInstance['makeStructuredRequest'](prompt);
+      
+      console.log('🔍 Job opportunities result type:', typeof result);
+      console.log('🔍 Job opportunities result keys:', result ? Object.keys(result) : 'null');
+      
+      // Handle different possible result structures
+      let jobOpps = null;
+      if (result && Array.isArray(result)) {
+        jobOpps = result;
+      } else if (result && Array.isArray(result.jobOpportunities)) {
+        jobOpps = result.jobOpportunities;
+      } else if (result && result.opportunities && Array.isArray(result.opportunities)) {
+        jobOpps = result.opportunities;
+      }
+      
+      if (jobOpps && jobOpps.length > 0) {
+        console.log('✅ Generated', jobOpps.length, 'job opportunities');
+        return jobOpps;
+      } else {
+        console.log('⚠️ No valid job opportunities found, using fallback');
+        return this.getFallbackJobOpportunities(fieldOfInterest, niche);
+      }
+    } catch (error) {
+      console.error('❌ Error generating job opportunities:', error);
+      return this.getFallbackJobOpportunities(fieldOfInterest, niche);
+    }
+  },
+
+  getFallbackJobOpportunities(fieldOfInterest: string, niche: string) {
+    return [
+      {
+        title: `${fieldOfInterest} Specialist`,
+        companyType: "Large Corporation",
+        salaryRange: "$60,000 - $90,000 per year",
+        experienceLevel: "Mid-level",
+        location: "Hybrid",
+        keySkills: ["Technical Skills", "Problem Solving", "Communication"],
+        growthPotential: "Clear path to senior roles and leadership positions",
+        description: `Specialist role in ${fieldOfInterest} focusing on core responsibilities`
+      },
+      {
+        title: `Senior ${fieldOfInterest} Professional`,
+        companyType: "Mid-size Company",
+        salaryRange: "$90,000 - $130,000 per year",
+        experienceLevel: "Senior",
+        location: "Major Cities",
+        keySkills: ["Leadership", "Strategic Thinking", "Advanced Technical Skills"],
+        growthPotential: "Opportunities for management and director-level positions",
+        description: `Senior role requiring deep expertise in ${fieldOfInterest}`
+      }
+    ];
+  },
+
+  // Generate startup guide for scenario analysis
+  async generateStartupGuide(
+    fieldOfInterest: string,
+    niche: string,
+    analysisResult: any
+  ): Promise<any> {
+    try {
+      console.log('🚀 Generating startup guide for:', fieldOfInterest, niche);
+      
+      const prompt = `You are an expert entrepreneurship advisor specializing in ${fieldOfInterest} startups. Generate a comprehensive startup guide based on:
+
+FIELD: ${fieldOfInterest}
+NICHE: ${niche}
+ANALYSIS: ${JSON.stringify(analysisResult, null, 2)}
+
+Generate a detailed startup guide with these sections:
+
+1. HOW TO START:
+   - Initial investment estimate
+   - Key requirements (legal, technical, business)
+   - Step-by-step guide (at least 5 steps) with:
+     * Step name
+     * Description of what to do
+     * Timeline for each step
+
+2. BUSINESS PLANNING:
+   - Business model description
+   - Revenue streams (3-5 options)
+   - Target customers description
+   - Competitive analysis
+   - Marketing strategy
+
+3. FINANCE:
+   - Startup costs breakdown
+   - Funding options (at least 3 types) with pros and cons for each
+   - Revenue projections (realistic estimates)
+   - Break-even analysis
+   - Financial milestones (3-5 milestones) with timeline and targets
+
+Return ONLY this JSON structure:
+{
+  "sector": "${niche}",
+  "howToStart": {
+    "initialInvestment": "Cost estimate",
+    "keyRequirements": ["Requirement 1", "Requirement 2"],
+    "steps": [
+      {
+        "step": "Step Name",
+        "description": "What to do",
+        "timeline": "When"
+      }
+    ]
+  },
+  "businessPlanning": {
+    "businessModel": "Model description",
+    "revenueStreams": ["Stream 1", "Stream 2"],
+    "targetCustomers": "Customer description",
+    "competitiveAnalysis": "Competitive landscape",
+    "marketingStrategy": "Marketing approach"
+  },
+  "finance": {
+    "startupCosts": "Cost breakdown",
+    "fundingOptions": [
+      {
+        "type": "Option Type",
+        "description": "Description",
+        "pros": ["Pro 1", "Pro 2"],
+        "cons": ["Con 1", "Con 2"]
+      }
+    ],
+    "revenueProjections": "Projection description",
+    "breakEvenAnalysis": "Break-even estimate",
+    "financialMilestones": [
+      {
+        "milestone": "Milestone name",
+        "timeline": "Timeframe",
+        "target": "Target amount/metric"
+      }
+    ]
+  }
+}`;
+
+      const result: any = await geminiServiceInstance['makeStructuredRequest'](prompt);
+      
+      console.log('🔍 Startup guide result type:', typeof result);
+      console.log('🔍 Startup guide result keys:', result ? Object.keys(result) : 'null');
+      
+      if (result && (result.sector || result.howToStart || result.businessPlanning)) {
+        console.log('✅ Generated startup guide');
+        return result;
+      } else {
+        console.log('⚠️ Invalid startup guide structure, using fallback');
+        return this.getFallbackStartupGuide(fieldOfInterest, niche);
+      }
+    } catch (error) {
+      console.error('❌ Error generating startup guide:', error);
+      return this.getFallbackStartupGuide(fieldOfInterest, niche);
+    }
+  },
+
+  getFallbackStartupGuide(fieldOfInterest: string, niche: string) {
+    return {
+      sector: niche,
+      howToStart: {
+        initialInvestment: "$50,000 - $150,000",
+        keyRequirements: [
+          "Business registration and legal setup",
+          "Initial product/service development",
+          "Market research and validation",
+          "Basic operational infrastructure"
+        ],
+        steps: [
+          {
+            step: "Market Research & Validation",
+            description: "Conduct thorough market research and validate your business idea with potential customers",
+            timeline: "1-2 months"
+          },
+          {
+            step: "Business Plan & Legal Setup",
+            description: "Create comprehensive business plan and complete legal registration",
+            timeline: "2-4 weeks"
+          },
+          {
+            step: "Initial Product/Service Development",
+            description: "Develop MVP or initial service offering",
+            timeline: "2-4 months"
+          },
+          {
+            step: "Funding & Financial Setup",
+            description: "Secure initial funding and set up financial systems",
+            timeline: "1-3 months"
+          },
+          {
+            step: "Launch & Market Entry",
+            description: "Launch your startup and begin marketing efforts",
+            timeline: "Ongoing"
+          }
+        ]
+      },
+      businessPlanning: {
+        businessModel: `Subscription or service-based model tailored for ${niche} market`,
+        revenueStreams: ["Subscription fees", "Service contracts", "Consulting", "Product sales"],
+        targetCustomers: `Small to medium businesses in ${fieldOfInterest} seeking innovative solutions`,
+        competitiveAnalysis: `Competitive market with opportunities for differentiation through quality and innovation`,
+        marketingStrategy: "Digital-first approach with content marketing, social media, and partnerships"
+      },
+      finance: {
+        startupCosts: "$50,000 - $150,000 initial investment",
+        fundingOptions: [
+          {
+            type: "Bootstrapping",
+            description: "Self-funding from personal savings",
+            pros: ["Full control", "No equity dilution", "No debt"],
+            cons: ["Limited capital", "Slow growth", "Personal risk"]
+          },
+          {
+            type: "Angel Investors",
+            description: "Early-stage individual investors",
+            pros: ["Mentorship", "Networking", "Flexible terms"],
+            cons: ["Equity dilution", "Less capital than VC"]
+          },
+          {
+            type: "Venture Capital",
+            description: "Institutional funding for growth",
+            pros: ["Large capital", "Expertise", "Network access"],
+            cons: ["Significant equity loss", "Pressure to scale", "Less control"]
+          }
+        ],
+        revenueProjections: "Break-even within 12-18 months with steady growth thereafter",
+        breakEvenAnalysis: "Estimated break-even point: 12-18 months with consistent customer acquisition",
+        financialMilestones: [
+          {
+            milestone: "First Revenue",
+            timeline: "3-6 months",
+            target: "$5,000 - $10,000 MRR"
+          },
+          {
+            milestone: "Break-Even",
+            timeline: "12-18 months",
+            target: "Positive cash flow"
+          },
+          {
+            milestone: "Profitability",
+            timeline: "18-24 months",
+            target: "20%+ profit margin"
+          }
+        ]
+      }
+    };
+  },
+
+  // Generate pros and cons of the field
+  async generateProsAndCons(fieldOfInterest: string, niche: string): Promise<any> {
+    try {
+      console.log('⚖️ Generating pros and cons for:', fieldOfInterest, niche);
+      
+      const prompt = `You are a senior career analyst specializing in ${fieldOfInterest}. Provide a balanced, honest assessment of working in the ${niche} field.
+
+Generate 6-8 key advantages (pros) and 5-7 key challenges (cons) for this field. For each point, provide:
+- A concise point/title
+- A detailed description explaining why this matters
+
+Also provide an overall assessment summarizing the field's opportunities and challenges.
+
+Return ONLY this JSON structure:
+{
+  "pros": [
+    {
+      "point": "Advantage Title",
+      "description": "Detailed explanation of this advantage"
+    }
+  ],
+  "cons": [
+    {
+      "point": "Challenge Title",
+      "description": "Detailed explanation of this challenge"
+    }
+  ],
+  "overallAssessment": "Overall balanced assessment of the field"
+}`;
+
+      const result: any = await geminiServiceInstance['makeStructuredRequest'](prompt);
+      
+      console.log('🔍 Pros and cons result type:', typeof result);
+      console.log('🔍 Pros and cons result keys:', result ? Object.keys(result) : 'null');
+      
+      if (result && ((Array.isArray(result.pros) && result.pros.length > 0) || result.pros) && 
+          ((Array.isArray(result.cons) && result.cons.length > 0) || result.cons)) {
+        console.log('✅ Generated pros and cons');
+        return result;
+      } else {
+        console.log('⚠️ Invalid pros and cons structure, using fallback');
+        return this.getFallbackProsAndCons(fieldOfInterest, niche);
+      }
+    } catch (error) {
+      console.error('❌ Error generating pros and cons:', error);
+      return this.getFallbackProsAndCons(fieldOfInterest, niche);
+    }
+  },
+
+  getFallbackProsAndCons(fieldOfInterest: string, niche: string) {
+    return {
+      pros: [
+        {
+          point: "Strong Growth Potential",
+          description: `${fieldOfInterest} is a rapidly growing field with increasing demand for skilled professionals and numerous career advancement opportunities.`
+        },
+        {
+          point: "Competitive Compensation",
+          description: `Professionals in ${fieldOfInterest} typically earn competitive salaries with good benefits and opportunities for performance-based bonuses.`
+        },
+        {
+          point: "Diverse Career Paths",
+          description: `The field offers diverse career paths allowing professionals to explore different specializations and find their niche.`
+        },
+        {
+          point: "Continuous Learning",
+          description: `The field encourages continuous learning and professional development, keeping skills current and relevant.`
+        },
+        {
+          point: "Impactful Work",
+          description: `Professionals in ${fieldOfInterest} often work on meaningful projects that create real-world impact and value.`
+        }
+      ],
+      cons: [
+        {
+          point: "High Competition",
+          description: `The field is competitive with many qualified candidates vying for top positions, requiring continuous skill development.`
+        },
+        {
+          point: "Fast-Paced Environment",
+          description: `The ${fieldOfInterest} field moves quickly, requiring professionals to adapt rapidly to new technologies and methodologies.`
+        },
+        {
+          point: "Work-Life Balance Challenges",
+          description: `Depending on the role and company, work-life balance can be challenging with tight deadlines and high expectations.`
+        },
+        {
+          point: "Continuous Learning Required",
+          description: `Staying relevant requires significant time investment in continuous learning and professional development.`
+        }
+      ],
+      overallAssessment: `The ${fieldOfInterest} field offers strong opportunities for growth and career advancement, particularly for those willing to continuously develop their skills. While competitive, the field rewards dedication and expertise with excellent career prospects and competitive compensation. Success requires commitment to lifelong learning and adaptability to industry changes.`
+    };
   },
 
 
