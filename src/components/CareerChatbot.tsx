@@ -111,42 +111,135 @@ Format your response naturally with line breaks for readability.`;
 
       // Use Gemini service to generate response
       const API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
-      if (!API_KEY) {
-        return "I'm having trouble connecting to the AI service. Please check your API configuration. For now, here's some general advice: Focus on building your core skills, network actively in your field, and seek mentorship opportunities.";
+      
+      if (!API_KEY || API_KEY === 'your_gemini_api_key_here' || API_KEY.trim() === '') {
+        console.error("❌ API key not found or invalid");
+        return "🔑 API key not configured. Please ensure VITE_GEMINI_API_KEY is set in your .env.local file in the CareerQuest directory and restart the development server.";
       }
+
+      console.log("✅ API Key found, length:", API_KEY.length);
+      console.log("✅ API Key preview:", API_KEY.substring(0, 10) + "...");
 
       // Use the geminiService if available, otherwise use direct API
-      const { GoogleGenerativeAI } = await import('@google/generative-ai');
-      const genAI = new GoogleGenerativeAI(API_KEY);
-      const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+      const maxRetries = 2;
+      let lastError: any = null;
 
-      const prompt = `${systemPrompt}\n\nUser question: ${userMessage}`;
+      for (let attempt = 0; attempt <= maxRetries; attempt++) {
+        try {
+          const { GoogleGenerativeAI } = await import('@google/generative-ai');
+          const genAI = new GoogleGenerativeAI(API_KEY);
+          const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
-      const result = await model.generateContent(prompt);
-      const response = await result.response;
-      let text = response.text();
+          const prompt = `${systemPrompt}\n\nUser question: ${userMessage}`;
 
-      // Clean up response
-      text = text.trim();
-      
-      return text || "I'm having trouble generating a response right now. Could you please rephrase your question?";
+          if (attempt > 0) {
+            console.log(`🔄 Retry attempt ${attempt + 1}/${maxRetries + 1}...`);
+            // Wait before retrying (exponential backoff)
+            await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
+          } else {
+            console.log("📤 Sending request to Gemini API...");
+          }
+
+          // Add timeout wrapper
+          const timeoutPromise = new Promise((_, reject) => 
+            setTimeout(() => reject(new Error('Request timeout after 30 seconds')), 30000)
+          );
+
+          const apiPromise = model.generateContent(prompt);
+          const result = await Promise.race([apiPromise, timeoutPromise]) as any;
+          const response = await result.response;
+          let text = response.text();
+
+          // Clean up response
+          text = text.trim();
+          
+          console.log("✅ Received response from Gemini API");
+          
+          if (!text || text.length === 0) {
+            return "I received an empty response from the AI. Could you please rephrase your question?";
+          }
+          
+          return text;
+        } catch (apiError: any) {
+          lastError = apiError;
+          console.error(`❌ Gemini API call failed (attempt ${attempt + 1}):`, apiError);
+          
+          // Don't retry on authentication errors or quota errors
+          const errorMsg = apiError?.message?.toLowerCase() || '';
+          if (
+            errorMsg.includes('401') || 
+            errorMsg.includes('unauthorized') || 
+            errorMsg.includes('invalid api key') ||
+            errorMsg.includes('403') ||
+            errorMsg.includes('forbidden') ||
+            errorMsg.includes('429') ||
+            errorMsg.includes('quota')
+          ) {
+            // Re-throw immediately for auth/quota errors
+            throw apiError;
+          }
+
+          // If it's the last attempt, throw the error
+          if (attempt === maxRetries) {
+            throw apiError;
+          }
+        }
+      }
+
+      // Should not reach here, but just in case
+      throw lastError || new Error('Failed to get response from Gemini API');
     } catch (error: any) {
       console.error("Error generating AI response:", error);
+      console.error("Error details:", {
+        message: error?.message,
+        status: error?.status,
+        statusText: error?.statusText,
+        name: error?.name,
+        stack: error?.stack
+      });
+      
+      // Check for API key issues first
+      const API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
+      if (!API_KEY || API_KEY === 'your_gemini_api_key_here') {
+        console.error("API key missing or not set");
+        return "🔑 API key not configured. Please ensure VITE_GEMINI_API_KEY is set in your .env.local file and restart the development server.";
+      }
       
       // Provide more specific error messages
-      if (error?.message?.includes('API_KEY')) {
-        return "API key configuration issue. Please check that VITE_GEMINI_API_KEY is set in your .env.local file. For setup instructions, see API_SETUP.md in the project root.";
+      const errorMessage = error?.message || error?.toString() || '';
+      const errorStatus = error?.status || error?.response?.status;
+      
+      if (errorMessage.includes('API_KEY') || errorMessage.includes('api key') || errorMessage.includes('API key')) {
+        return "🔑 API key configuration issue. Please check that VITE_GEMINI_API_KEY is set correctly in your .env.local file and restart the server.";
       }
       
-      if (error?.message?.includes('429') || error?.status === 429) {
-        return "API quota exceeded. You've reached the rate limit. Please try again in a few moments, or check your API quota at Google AI Studio.";
+      if (errorMessage.includes('429') || errorStatus === 429 || errorMessage.includes('quota') || errorMessage.includes('rate limit')) {
+        return "⏱️ API quota exceeded. You've reached the rate limit. Please try again in a few moments, or check your API quota at Google AI Studio (https://aistudio.google.com/app/apikey).";
       }
       
-      if (error?.message?.includes('401') || error?.status === 401) {
-        return "Invalid API key. Please verify your VITE_GEMINI_API_KEY in .env.local is correct and hasn't expired.";
+      if (errorMessage.includes('401') || errorStatus === 401 || errorMessage.includes('unauthorized') || errorMessage.includes('Invalid API key')) {
+        return "❌ Invalid API key. Please verify your VITE_GEMINI_API_KEY in .env.local is correct and hasn't expired. Check at https://aistudio.google.com/app/apikey";
       }
       
-      return "I apologize, but I'm having technical difficulties right now. Please try again in a moment. For immediate help, consider connecting with our alumni and experts network!";
+      if (errorMessage.includes('403') || errorStatus === 403 || errorMessage.includes('permission') || errorMessage.includes('forbidden')) {
+        return "🚫 API access forbidden. Please check your API key permissions at Google AI Studio.";
+      }
+      
+      if (errorMessage.includes('network') || errorMessage.includes('fetch') || errorMessage.includes('Failed to fetch') || errorMessage.includes('ERR_NETWORK') || errorMessage.includes('network error')) {
+        return `🌐 Network error detected. This could be due to:\n\n1. **Internet Connection**: Check if you're connected to the internet\n2. **Firewall/Proxy**: Your network might be blocking the API request\n3. **CORS Issues**: Try refreshing the page\n4. **API Service**: Google's Gemini API might be temporarily unavailable\n\n**Troubleshooting Steps:**\n- Check your internet connection\n- Try refreshing the page\n- Check browser console (F12) for detailed errors\n- Verify API key is correct: ${API_KEY?.substring(0, 10)}...\n- Visit https://status.cloud.google.com/ to check Google Cloud status\n\nIf the problem persists, try again in a few minutes.`;
+      }
+      
+      if (errorMessage.includes('timeout') || errorMessage.includes('timed out') || errorMessage.includes('Request timeout')) {
+        return `⏰ Request timed out after 30 seconds. This could be due to:\n\n1. **Slow Internet**: Your connection might be too slow\n2. **API Overload**: The Gemini API might be busy\n3. **Network Issues**: Temporary network problems\n\n**Please try:**\n- Check your internet speed\n- Try again in a moment\n- Simplify your question if it's very long\n- Check if other websites are loading normally`;
+      }
+      
+      // Log full error for debugging
+      console.error("Unhandled error type:", error);
+      console.error("Full error object:", JSON.stringify(error, Object.getOwnPropertyNames(error)));
+      
+      // More detailed error message
+      const detailedError = errorMessage || error?.toString() || 'Unknown error';
+      return `❌ I encountered an issue: ${detailedError}\n\nPlease check:\n1. Your API key is valid at https://aistudio.google.com/app/apikey\n2. You have internet connection\n3. Browser console (F12) for more details\n\nIf the problem persists, try restarting the development server.`;
     }
   };
 
@@ -181,18 +274,22 @@ Format your response naturally with line breaks for readability.`;
       };
 
       setMessages((prev) => [...prev, newAIMessage]);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error sending message:", error);
+      const errorDetails = error?.message || error?.toString() || "Unknown error";
+      console.error("Error details:", errorDetails);
+      
       toast({
         title: "Error",
-        description: "Failed to send message. Please try again.",
+        description: "Failed to send message. Check console for details.",
         variant: "destructive",
       });
       
+      // Use the actual error message from generateAIResponse, or show a helpful message
       const errorMessage: ChatMessage = {
         id: `error-${Date.now()}`,
         role: "assistant",
-        content: "I apologize, but I encountered an error. Please try again.",
+        content: typeof error === 'string' ? error : errorDetails || "I encountered an error processing your request. Please check the browser console (F12) for more details and try again.",
         timestamp: new Date(),
       };
       setMessages((prev) => [...prev, errorMessage]);

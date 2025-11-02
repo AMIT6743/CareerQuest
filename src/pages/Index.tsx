@@ -5,7 +5,6 @@ import { PathSelection } from "./PathSelection";
 import { TalentsPath } from "./TalentsPath";
 import ScenariosPath from "./ScenariosPath";
 import ExpertConnect from "./ExpertConnect";
-import { CareerChatbot } from "@/components/CareerChatbot";
 
 type Screen = "landing" | "path-selection" | "talents" | "scenarios" | "expert-connect";
 
@@ -80,14 +79,6 @@ const Index = () => {
       {currentScreen === "expert-connect" && (
         <ExpertConnect
           onBack={handleBackToPathSelection}
-        />
-      )}
-
-      {/* Global Chatbot - available on all authenticated pages */}
-      {user && currentScreen !== "landing" && (
-        <CareerChatbot 
-          userName={user.name}
-          fieldOfInterest={currentScreen === "talents" || currentScreen === "scenarios" ? undefined : undefined}
         />
       )}
     </main>
